@@ -1,0 +1,22 @@
+# Local environments and package caches
+.conda/
+.conda-pkgs/
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+!.env.development.example
+!.env.test.example
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE and local tooling
+.idea/
+.vscode/
