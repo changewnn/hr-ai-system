@@ -39,6 +39,7 @@ class Settings(BaseSettings):
 
     secret_key: str = Field(default="change-me-in-local-env", min_length=16)
     jwt_expire_hours: int = Field(default=8, ge=1, le=168)
+    jwt_algorithm: str = "HS256"
     database_url: str = "postgresql+asyncpg://hr:hr@localhost:5432/hr_system"
     redis_url: str = "redis://localhost:6379/0"
 

@@ -2,6 +2,20 @@
 
 完整部署、数据库迁移和初始化操作参见项目根目录的 [`部署操作手册.md`](../部署操作手册.md)。
 
+登录接口：`POST /api/auth/login`
+
+认证接口：`POST /api/auth/refresh`、`POST /api/auth/logout`、`GET /api/auth/me`、`POST /api/auth/change-password`。
+
+组织接口：`/api/departments`、`/api/positions`、`/api/employees`，其中员工导出接口为 `GET /api/employees/export`，CSV 兼容导出为 `GET /api/employees/export-csv`。
+
+受保护业务路由应使用 `CurrentActiveUser`；首次登录需要改密、账号停用或员工已离职时会被拒绝。角色依赖可使用 `AdminUser`、`ManagerOrAdminUser`，员工/部门数据范围使用 `ensure_employee_scope` 和 `ensure_employee_department_scope`。
+
+请求示例：
+
+```json
+{"identifier":"admin","password":"your-password"}
+```
+
 M1-01 的 FastAPI 后端工程骨架。当前只提供应用入口、分层配置和健康检查，业务模块将在后续阶段按任务清单逐步加入。
 
 ## Conda 环境

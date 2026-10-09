@@ -9,8 +9,6 @@ services:
       APP_ENV: ${APP_ENV:-development}
       HR_HOST: 0.0.0.0
       HR_PORT: 8000
-      HR_DATABASE_URL: ${HR_DATABASE_URL}
-      HR_REDIS_URL: ${HR_REDIS_URL:-redis://host.docker.internal:6379/0}
     expose:
       - "8000"
     restart: unless-stopped
