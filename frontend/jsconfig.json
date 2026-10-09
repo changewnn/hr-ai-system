@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "jsx": "preserve",
+    "strict": false,
+    "baseUrl": "."
+  },
+  "include": ["src/**/*.js", "src/**/*.vue", "vite.config.js"]
+}

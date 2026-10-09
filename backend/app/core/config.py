@@ -5,8 +5,10 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Self
 
 from pydantic import Field
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,6 +41,15 @@ class Settings(BaseSettings):
     jwt_expire_hours: int = Field(default=8, ge=1, le=168)
     database_url: str = "postgresql+asyncpg://hr:hr@localhost:5432/hr_system"
     redis_url: str = "redis://localhost:6379/0"
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> Self:
+        if self.app_env.lower() == "production":
+            if self.secret_key == "change-me-in-local-env" or len(self.secret_key) < 32:
+                raise ValueError("HR_SECRET_KEY must be a random value of at least 32 characters in production")
+            if self.debug:
+                raise ValueError("HR_DEBUG must be false in production")
+        return self
 
 
 @lru_cache(maxsize=1)
