@@ -19,6 +19,8 @@ frontend/e2e-artifacts/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+data/knowledge/
+backend/data/knowledge/
 
 # IDE and local tooling
 .idea/

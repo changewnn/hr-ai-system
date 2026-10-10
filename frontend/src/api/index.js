@@ -73,3 +73,21 @@ export const messageApi = {
   read: (id) => http.patch(`/messages/${id}/read`),
   readAll: () => http.post('/messages/read-all'),
 }
+export const knowledgeApi = {
+  list: (params) => http.get('/admin/knowledge', { params }),
+  detail: (id) => http.get(`/admin/knowledge/${id}`),
+  create: (data) => http.post('/admin/knowledge', data),
+  uploadVersion: (id, data) => http.post(`/admin/knowledge/${id}/versions`, data),
+  publish: (id) => http.post(`/admin/knowledge/versions/${id}/publish`),
+  archive: (id) => http.post(`/admin/knowledge/versions/${id}/archive`),
+  retry: (id) => http.post(`/admin/knowledge/versions/${id}/retry`),
+  search: (data) => http.post('/admin/knowledge/search', data),
+}
+export const agentApi = {
+  conversations: () => http.get('/agent/conversations'),
+  createConversation: (data = {}) => http.post('/agent/conversations', data),
+  conversation: (id) => http.get(`/agent/conversations/${id}`),
+  rename: (id, data) => http.patch(`/agent/conversations/${id}`, data),
+  message: (id, data) => http.post(`/agent/conversations/${id}/messages`, data),
+  streamUrl: (id) => `${http.defaults.baseURL}/agent/conversations/${id}/messages/stream`,
+}

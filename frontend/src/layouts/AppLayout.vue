@@ -41,6 +41,9 @@
         <el-menu-item index="/messages"
           ><el-icon><Bell /></el-icon><template #title>消息中心</template></el-menu-item
         >
+        <el-menu-item index="/knowledge"
+          ><el-icon><Collection /></el-icon><template #title>政策知识库</template></el-menu-item
+        >
       </el-menu>
       <div v-if="!app.sidebarCollapsed" class="side-footer">MVP · v0.1.0</div>
     </el-aside>
@@ -92,6 +95,7 @@ import {
   Bell,
   Briefcase,
   Calendar,
+  Collection,
   DataAnalysis,
   DocumentChecked,
   Expand,

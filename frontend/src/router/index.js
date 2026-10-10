@@ -63,6 +63,11 @@ const routes = [
         component: () => import('../views/MessageView.vue'),
         meta: { title: '消息中心', admin: true },
       },
+      {
+        path: 'knowledge',
+        component: () => import('../views/KnowledgeView.vue'),
+        meta: { title: '政策知识库', admin: true },
+      },
     ],
   },
   {

@@ -9,6 +9,7 @@ const http = axios.create({
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem('hr_access_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+  if (config.data instanceof FormData) delete config.headers['Content-Type']
   return config
 })
 

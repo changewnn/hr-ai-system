@@ -10,6 +10,22 @@
 
 薪酬接口：`GET/PUT /api/salary/config`、`POST /api/salary/calculate`、`POST /api/salary/publish`、`GET /api/salary/records`、`GET /api/salary/mine`、`POST /api/salary/adjustments`。
 
+政策知识库接口：`/api/admin/knowledge`。仅 ADMIN 可以上传、查看、重试、发布和归档政策版本。文档上传后由后台任务解析、切分并调用千问向量模型写入 PostgreSQL + pgvector；支持带文本层的 PDF、DOCX、MD、TXT，暂不支持扫描 PDF OCR。
+
+知识库需要配置 `HR_EMBEDDING_BASE_URL`、`HR_EMBEDDING_API_KEY`、`HR_EMBEDDING_MODEL`。当前迁移固定向量维度为 1024，因此 `HR_EMBEDDING_DIMENSION` 必须为 1024。
+
+执行 M10 知识库迁移前，请确认目标数据库已经启用 pgvector。若当前数据库用户没有创建扩展权限，请由数据库管理员连接到目标数据库 `hr-ai-system` 执行：
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+然后在项目根目录执行：
+
+```powershell
+docker compose exec backend alembic -c alembic.ini upgrade head
+```
+
 受保护业务路由应使用 `CurrentActiveUser`；首次登录需要改密、账号停用或员工已离职时会被拒绝。角色依赖可使用 `AdminUser`、`ManagerOrAdminUser`，员工/部门数据范围使用 `ensure_employee_scope` 和 `ensure_employee_department_scope`。
 
 请求示例：

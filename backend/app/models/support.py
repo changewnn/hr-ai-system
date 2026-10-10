@@ -59,7 +59,10 @@ class AgentConversation(Base):
     __tablename__ = "agent_conversation"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    employee_id: Mapped[int | None] = mapped_column(ForeignKey("employee.id", ondelete="SET NULL"), index=True)
     title: Mapped[str | None] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", index=True)
+    checkpoint_id: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -73,6 +76,9 @@ class AgentMessage(Base):
     tool_name: Mapped[str | None] = mapped_column(String(100))
     tool_args: Mapped[dict | None] = mapped_column(JSON)
     confirmation_status: Mapped[str | None] = mapped_column(String(30))
+    citations: Mapped[list | None] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(20), default="COMPLETED")
+    request_id: Mapped[str | None] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
 

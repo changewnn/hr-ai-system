@@ -43,6 +43,23 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://hr:hr@localhost:5432/hr_system"
     redis_url: str = "redis://localhost:6379/0"
 
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+    embedding_model: str = "text-embedding-v3"
+    embedding_dimension: int = Field(default=1024, ge=1)
+    embedding_timeout_seconds: int = Field(default=30, ge=1, le=120)
+    knowledge_storage_path: str = "data/knowledge"
+    knowledge_max_file_mb: int = Field(default=20, ge=1, le=100)
+    knowledge_chunk_size: int = Field(default=2400, ge=500, le=8000)
+    knowledge_chunk_overlap: int = Field(default=300, ge=0, le=2000)
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = "deepseek-chat"
+    llm_timeout_seconds: int = Field(default=30, ge=1, le=120)
+    agent_enabled: bool = False
+    agent_max_input_chars: int = Field(default=4000, ge=100, le=10000)
+    agent_max_context_chunks: int = Field(default=4, ge=1, le=10)
+
     @model_validator(mode="after")
     def validate_production_secrets(self) -> Self:
         if self.app_env.lower() == "production":

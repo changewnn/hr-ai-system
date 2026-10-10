@@ -56,6 +56,7 @@ class MessageType(str, enum.Enum):
     APPROVAL_TODO = "APPROVAL_TODO"
     APPROVAL_RESULT = "APPROVAL_RESULT"
     SALARY_PUBLISHED = "SALARY_PUBLISHED"
+    POLICY_CONSULT = "POLICY_CONSULT"
 
 
 class PolicyStatus(str, enum.Enum):
