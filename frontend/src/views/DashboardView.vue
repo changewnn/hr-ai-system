@@ -17,14 +17,15 @@
 import { onMounted, ref } from 'vue'
 import { ArrowRight, Calendar, CircleCheck, Clock, DocumentChecked, Refresh, User } from '@element-plus/icons-vue'
 import { getHealth } from '../api/http'
+import { attendanceApi, employeeApi, leaveApi, messageApi } from '../api'
 
 const loading = ref(false)
 const healthError = ref(false)
 const stats = [
-  { label: '在职员工', value: '96', trend: '较上月 +4', trendClass: 'positive', tone: 'blue', icon: User },
-  { label: '今日出勤', value: '91', trend: '出勤率 94.8%', trendClass: 'positive', tone: 'green', icon: CircleCheck },
-  { label: '待审批请假', value: '6', trend: '较昨日 +2', trendClass: 'warning', tone: 'amber', icon: DocumentChecked },
-  { label: '本月缺卡', value: '12', trend: '较上月 -5', trendClass: 'positive', tone: 'red', icon: Clock },
+  { label: '在职员工', value: '0', trend: '来自员工档案', trendClass: 'positive', tone: 'blue', icon: User },
+  { label: '本月出勤', value: '0', trend: '来自考勤汇总', trendClass: 'positive', tone: 'green', icon: CircleCheck },
+  { label: '待审批请假', value: '0', trend: '需要及时处理', trendClass: 'warning', tone: 'amber', icon: DocumentChecked },
+  { label: '未读消息', value: '0', trend: '来自消息中心', trendClass: 'positive', tone: 'red', icon: Clock },
 ]
 const todos = [
   { title: '请假审批待处理', detail: '6 条申请等待你的审批', tone: 'amber' },
@@ -40,7 +41,26 @@ const activities = [
 async function checkHealth() {
   loading.value = true
   healthError.value = false
-  try { await getHealth() } catch { healthError.value = true } finally { loading.value = false }
+  try {
+    const month = new Date().toISOString().slice(0, 7)
+    const [health, employees, attendance, leaves, messages] = await Promise.all([
+      getHealth(),
+      employeeApi.list({ status: 'ACTIVE', page: 1, page_size: 1 }),
+      attendanceApi.summary({ month }),
+      leaveApi.pending(),
+      messageApi.list({ unread_only: true }),
+    ])
+    if (health.data?.status !== 'healthy') throw new Error('health check failed')
+    stats[0].value = String(employees.data?.total || 0)
+    stats[1].value = String((attendance.data || []).reduce((total, item) => total + (item.attendance_days || 0), 0))
+    stats[2].value = String((leaves.data || []).length)
+    stats[3].value = String(messages.data?.unread_count || 0)
+    todos[0].detail = `${stats[2].value} 条申请等待你的审批`
+  } catch {
+    healthError.value = true
+  } finally {
+    loading.value = false
+  }
 }
 onMounted(checkHealth)
 </script>

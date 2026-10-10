@@ -8,6 +8,8 @@
 
 组织接口：`/api/departments`、`/api/positions`、`/api/employees`，其中员工导出接口为 `GET /api/employees/export`，CSV 兼容导出为 `GET /api/employees/export-csv`。
 
+薪酬接口：`GET/PUT /api/salary/config`、`POST /api/salary/calculate`、`POST /api/salary/publish`、`GET /api/salary/records`、`GET /api/salary/mine`、`POST /api/salary/adjustments`。
+
 受保护业务路由应使用 `CurrentActiveUser`；首次登录需要改密、账号停用或员工已离职时会被拒绝。角色依赖可使用 `AdminUser`、`ManagerOrAdminUser`，员工/部门数据范围使用 `ensure_employee_scope` 和 `ensure_employee_department_scope`。
 
 请求示例：

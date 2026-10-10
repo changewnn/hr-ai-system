@@ -12,6 +12,10 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.departments import router as departments_router
 from app.api.routes.positions import router as positions_router
 from app.api.routes.employees import router as employees_router
+from app.api.routes.attendance import router as attendance_router
+from app.api.routes.leaves import router as leaves_router
+from app.api.routes.salary import router as salary_router
+from app.api.routes.messages import router as messages_router
 from app.core.config import get_settings
 
 
@@ -29,6 +33,10 @@ def create_app() -> FastAPI:
     application.include_router(departments_router, prefix="/api")
     application.include_router(positions_router, prefix="/api")
     application.include_router(employees_router, prefix="/api")
+    application.include_router(attendance_router, prefix="/api")
+    application.include_router(leaves_router, prefix="/api")
+    application.include_router(salary_router, prefix="/api")
+    application.include_router(messages_router, prefix="/api")
     application.add_exception_handler(BusinessError, business_error_handler)
     application.add_exception_handler(RequestValidationError, validation_error_handler)
     return application

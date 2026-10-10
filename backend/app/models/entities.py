@@ -183,7 +183,7 @@ class LeaveApproval(Base):
 
 class SalaryConfig(Base):
     __tablename__ = "salary_config"
-    __table_args__ = (UniqueConstraint("employee_id", name="uq_salary_config_employee"),)
+    __table_args__ = (UniqueConstraint("employee_id", "effective_date", name="uq_salary_config_employee_effective"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employee.id", ondelete="RESTRICT"))
     base_salary: Mapped[Decimal] = mapped_column(Numeric(12, 2))

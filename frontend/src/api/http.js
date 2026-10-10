@@ -13,9 +13,14 @@ http.interceptors.request.use((config) => {
 })
 
 http.interceptors.response.use(
-  (response) => response,
+  (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) localStorage.removeItem('hr_access_token')
+    if (error.response?.status === 401) {
+      localStorage.removeItem('hr_access_token')
+      localStorage.removeItem('hr_user')
+      if (window.location.pathname !== '/login') window.location.assign('/login')
+    }
+    error.businessMessage = error.response?.data?.message || error.message || '请求失败'
     return Promise.reject(error)
   },
 )
