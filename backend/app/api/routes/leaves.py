@@ -94,6 +94,10 @@ async def set_balance(payload: LeaveBalanceUpdate, current_user: AdminUser, sess
 @router.post("")
 async def create_leave(payload: LeaveRequestCreate, current_user: CurrentActiveUser, session: AsyncSession = Depends(get_db)) -> dict:
     employee = await _employee(current_user, session)
+    if payload.start_period == "FULL_DAY":
+        payload.start_period = "AM"
+    if payload.end_period == "FULL_DAY":
+        payload.end_period = "PM"
     today = business_now().date()
     if payload.start_date < today:
         raise BusinessError(40001, "LEAVE_DATE_IN_PAST", "请假日期早于当前日期", 400)
@@ -128,7 +132,23 @@ async def create_leave(payload: LeaveRequestCreate, current_user: CurrentActiveU
 async def my_leaves(current_user: CurrentActiveUser, session: AsyncSession = Depends(get_db)) -> dict:
     employee = await _employee(current_user, session)
     rows = (await session.scalars(select(LeaveRequest).where(LeaveRequest.employee_id == employee.id).order_by(LeaveRequest.id.desc()))).all()
-    return success([_request_dict(row) for row in rows])
+    result = []
+    for row in rows:
+        approval = await session.scalar(select(LeaveApproval).where(LeaveApproval.leave_request_id == row.id).order_by(LeaveApproval.id.desc()).limit(1))
+        result.append(_request_dict(row, approval))
+    return success(result)
+
+
+@router.get("/my-balance")
+async def my_balance(current_user: CurrentActiveUser, session: AsyncSession = Depends(get_db), year: int | None = None) -> dict:
+    employee = await _employee(current_user, session)
+    target_year = year or business_now().year
+    rows = (await session.scalars(select(LeaveType).where(LeaveType.status == ActiveStatus.ACTIVE).order_by(LeaveType.id))).all()
+    result = []
+    for leave_type in rows:
+        quota = await annual_remaining(session, employee.id, leave_type.id, target_year)
+        result.append({"leave_type_id": leave_type.id, "name": leave_type.name, "code": leave_type.code, "remaining_days": str(quota)})
+    return success(result)
 
 
 @router.get("/pending")

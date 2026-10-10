@@ -1,10 +1,122 @@
-<template><div><PageHeader title="部门管理" description="维护组织层级和部门主管"><el-button type="primary" :icon="Plus" @click="openCreate">新增部门</el-button></PageHeader><section class="panel"><el-table v-loading="loading" :data="rows" row-key="id" default-expand-all :tree-props="{ children: 'children' }"><el-table-column prop="name" label="部门名称" min-width="240" /><el-table-column prop="leader_id" label="主管员工 ID" width="150"><template #default="{ row }">{{ row.leader_id || '未设置' }}</template></el-table-column><el-table-column prop="created_at" label="创建时间" min-width="190" /><el-table-column label="操作" width="180" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column></el-table><el-empty v-if="!loading && !rows.length" description="暂无部门" /></section><el-dialog v-model="visible" :title="editing ? '编辑部门' : '新增部门'" width="480"><el-form ref="formRef" :model="form" label-position="top"><el-form-item label="部门名称" required><el-input v-model="form.name" maxlength="100" /></el-form-item><el-form-item label="上级部门"><el-tree-select v-model="form.parent_id" :data="treeOptions" clearable check-strictly :render-after-expand="false" style="width:100%" /></el-form-item><el-form-item label="主管员工 ID"><el-input-number v-model="form.leader_id" :min="1" controls-position="right" style="width:100%" /></el-form-item></el-form><template #footer><el-button @click="visible=false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template></el-dialog></div></template>
+<template>
+  <div>
+    <PageHeader title="部门管理" description="维护组织层级和部门主管"
+      ><el-button type="primary" :icon="Plus" @click="openCreate">新增部门</el-button></PageHeader
+    >
+    <section class="panel">
+      <el-table
+        v-loading="loading"
+        :data="rows"
+        row-key="id"
+        default-expand-all
+        :tree-props="{ children: 'children' }"
+        ><el-table-column prop="name" label="部门名称" min-width="240" /><el-table-column
+          prop="leader_id"
+          label="主管员工 ID"
+          width="150"
+          ><template #default="{ row }">{{ row.leader_id || '未设置' }}</template></el-table-column
+        ><el-table-column label="创建时间" min-width="190"
+          ><template #default="{ row }">{{
+            formatDateTime(row.created_at)
+          }}</template></el-table-column
+        ><el-table-column label="操作" width="180" fixed="right"
+          ><template #default="{ row }"
+            ><el-button link type="primary" @click="openEdit(row)">编辑</el-button
+            ><el-button link type="danger" @click="remove(row)">删除</el-button></template
+          ></el-table-column
+        ></el-table
+      ><el-empty v-if="!loading && !rows.length" description="暂无部门" />
+    </section>
+    <el-dialog v-model="visible" :title="editing ? '编辑部门' : '新增部门'" width="480"
+      ><el-form ref="formRef" :model="form" label-position="top"
+        ><el-form-item label="部门名称" required
+          ><el-input v-model="form.name" maxlength="100" /></el-form-item
+        ><el-form-item label="上级部门"
+          ><el-tree-select
+            v-model="form.parent_id"
+            :data="treeOptions"
+            clearable
+            check-strictly
+            :render-after-expand="false"
+            style="width: 100%" /></el-form-item
+        ><el-form-item label="主管员工 ID"
+          ><el-input-number
+            v-model="form.leader_id"
+            :min="1"
+            controls-position="right"
+            style="width: 100%" /></el-form-item></el-form
+      ><template #footer
+        ><el-button @click="visible = false">取消</el-button
+        ><el-button type="primary" :loading="saving" @click="save">保存</el-button></template
+      ></el-dialog
+    >
+  </div>
+</template>
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'; import { ElMessage, ElMessageBox } from 'element-plus'; import { Plus } from '@element-plus/icons-vue'; import PageHeader from '../components/PageHeader.vue'; import { departmentApi } from '../api'
-const rows=ref([]),loading=ref(false),visible=ref(false),saving=ref(false),editing=ref(null); const form=reactive({name:'',parent_id:null,leader_id:null})
-const treeOptions=computed(()=>{const map=(items)=>items.filter(x=>x.id!==editing.value?.id).map(x=>({value:x.id,label:x.name,children:map(x.children||[])}));return map(rows.value)})
-async function load(){loading.value=true;try{rows.value=(await departmentApi.list()).data||[]}catch(e){ElMessage.error(e.businessMessage)}finally{loading.value=false}}
-function openCreate(){editing.value=null;Object.assign(form,{name:'',parent_id:null,leader_id:null});visible.value=true} function openEdit(row){editing.value=row;Object.assign(form,{name:row.name,parent_id:row.parent_id,leader_id:row.leader_id});visible.value=true}
-async function save(){if(!form.name.trim())return ElMessage.warning('请输入部门名称');saving.value=true;try{editing.value?await departmentApi.update(editing.value.id,{...form}):await departmentApi.create({...form});ElMessage.success('保存成功');visible.value=false;await load()}catch(e){ElMessage.error(e.businessMessage)}finally{saving.value=false}}
-async function remove(row){try{await ElMessageBox.confirm(`确认删除“${row.name}”？`,'删除部门',{type:'warning'});await departmentApi.remove(row.id);ElMessage.success('删除成功');await load()}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error(e.businessMessage)}} onMounted(load)
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import PageHeader from '../components/PageHeader.vue'
+import { departmentApi } from '../api'
+import { formatDateTime } from '../utils/datetime'
+const rows = ref([]),
+  loading = ref(false),
+  visible = ref(false),
+  saving = ref(false),
+  editing = ref(null)
+const form = reactive({ name: '', parent_id: null, leader_id: null })
+const treeOptions = computed(() => {
+  const map = (items) =>
+    items
+      .filter((x) => x.id !== editing.value?.id)
+      .map((x) => ({ value: x.id, label: x.name, children: map(x.children || []) }))
+  return map(rows.value)
+})
+async function load() {
+  loading.value = true
+  try {
+    rows.value = (await departmentApi.list()).data || []
+  } catch (e) {
+    ElMessage.error(e.businessMessage)
+  } finally {
+    loading.value = false
+  }
+}
+function openCreate() {
+  editing.value = null
+  Object.assign(form, { name: '', parent_id: null, leader_id: null })
+  visible.value = true
+}
+function openEdit(row) {
+  editing.value = row
+  Object.assign(form, { name: row.name, parent_id: row.parent_id, leader_id: row.leader_id })
+  visible.value = true
+}
+async function save() {
+  if (!form.name.trim()) return ElMessage.warning('请输入部门名称')
+  saving.value = true
+  try {
+    editing.value
+      ? await departmentApi.update(editing.value.id, { ...form })
+      : await departmentApi.create({ ...form })
+    ElMessage.success('保存成功')
+    visible.value = false
+    await load()
+  } catch (e) {
+    ElMessage.error(e.businessMessage)
+  } finally {
+    saving.value = false
+  }
+}
+async function remove(row) {
+  try {
+    await ElMessageBox.confirm(`确认删除“${row.name}”？`, '删除部门', { type: 'warning' })
+    await departmentApi.remove(row.id)
+    ElMessage.success('删除成功')
+    await load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e.businessMessage)
+  }
+}
+onMounted(load)
 </script>

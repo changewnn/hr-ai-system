@@ -7,7 +7,7 @@ from openpyxl import Workbook
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import AdminUser
+from app.api.dependencies import AdminUser, CurrentActiveUser
 from app.common.crypto import decrypt_sensitive, encrypt_sensitive, mask_id_card
 from app.common.errors import BusinessError
 from app.common.responses import success
@@ -68,6 +68,16 @@ async def list_employees(_: AdminUser, session: AsyncSession = Depends(get_db), 
     total = await session.scalar(select(func.count()).select_from(Employee).where(*conditions))
     rows = (await session.scalars(select(Employee).where(*conditions).order_by(Employee.id.desc()).offset((page - 1) * page_size).limit(page_size))).all()
     return success({"items": [_employee_dict(row) for row in rows], "page": page, "page_size": page_size, "total": total or 0})
+
+
+@router.get("/me")
+async def get_my_employee(current_user: CurrentActiveUser, session: AsyncSession = Depends(get_db)) -> dict:
+    if current_user.employee_id is None:
+        raise BusinessError(20006, "EMPLOYEE_PROFILE_NOT_BOUND", "当前账号未绑定员工档案", 403)
+    row = await session.scalar(select(Employee).where(Employee.id == current_user.employee_id, Employee.deleted_at.is_(None)))
+    if row is None:
+        raise BusinessError(20006, "EMPLOYEE_NOT_FOUND", "员工档案不存在", 404)
+    return success(_employee_dict(row, detail=True))
 
 
 @router.get("/{employee_id}")

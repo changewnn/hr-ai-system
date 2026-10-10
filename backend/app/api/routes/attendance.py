@@ -109,6 +109,13 @@ async def records(current_user: CurrentActiveUser, session: AsyncSession = Depen
     return success([_record_dict(row) for row in rows])
 
 
+@router.get("/mine")
+async def my_records(current_user: CurrentActiveUser, session: AsyncSession = Depends(get_db), month: str = Query(..., pattern=r"^\d{4}-\d{2}$")) -> dict:
+    if current_user.employee_id is None:
+        raise BusinessError(30006, "ATTENDANCE_EMPLOYEE_REQUIRED", "当前账号未绑定员工档案", 403)
+    return await records(current_user, session, month, current_user.employee_id)
+
+
 @router.get("/summary")
 async def summary(current_user: ManagerOrAdminUser, session: AsyncSession = Depends(get_db), month: str = Query(..., pattern=r"^\d{4}-\d{2}$")) -> dict:
     start = date.fromisoformat(f"{month}-01")

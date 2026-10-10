@@ -27,8 +27,8 @@ class LeaveRequestCreate(BaseModel):
     leave_type_id: int
     start_date: date
     end_date: date
-    start_period: str = Field(pattern="^(AM|PM)$")
-    end_period: str = Field(pattern="^(AM|PM)$")
+    start_period: str = Field(pattern="^(AM|PM|FULL_DAY)$")
+    end_period: str = Field(pattern="^(AM|PM|FULL_DAY)$")
     reason: str = Field(min_length=1, max_length=1000)
 
 
