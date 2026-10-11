@@ -90,4 +90,5 @@ export const agentApi = {
   rename: (id, data) => http.patch(`/agent/conversations/${id}`, data),
   message: (id, data) => http.post(`/agent/conversations/${id}/messages`, data),
   streamUrl: (id) => `${http.defaults.baseURL}/agent/conversations/${id}/messages/stream`,
+  confirmLeave: (id, data) => http.post(`/agent/conversations/${id}/confirm-leave`, data),
 }

@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     agent_enabled: bool = False
     agent_max_input_chars: int = Field(default=4000, ge=100, le=10000)
     agent_max_context_chunks: int = Field(default=4, ge=1, le=10)
+    agent_rate_limit_per_minute: int = Field(default=30, ge=1, le=300)
+    agent_sse_rate_limit_per_minute: int = Field(default=10, ge=1, le=60)
+    agent_retention_days: int = Field(default=180, ge=30, le=3650)
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> Self:

@@ -11,3 +11,7 @@ class AgentMessageCreate(BaseModel):
 
 class ConversationRename(BaseModel):
     title: str = Field(min_length=1, max_length=200)
+
+
+class AgentConfirmation(BaseModel):
+    confirmation_token: str = Field(min_length=20, max_length=200)

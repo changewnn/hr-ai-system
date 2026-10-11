@@ -8,12 +8,14 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import CurrentActiveUser
+from app.api.dependencies import CurrentActiveUser, agent_rate_limit, agent_sse_rate_limit
 from app.common.responses import success
 from app.db.session import get_db
+from app.models.entities import User
 from app.models.support import AgentConversation, AgentMessage
-from app.schemas.agent import AgentMessageCreate, ConversationCreate, ConversationRename
+from app.schemas.agent import AgentConfirmation, AgentMessageCreate, ConversationCreate, ConversationRename
 from app.services.agent import create_conversation, ensure_conversation, run_turn
+from app.services.agent_tools import confirm_leave
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -105,6 +107,7 @@ async def send_agent_message(
     conversation_id: int,
     payload: AgentMessageCreate,
     current_user: CurrentActiveUser,
+    _: User = Depends(agent_rate_limit),
     session: AsyncSession = Depends(get_db),
 ) -> dict:
     conversation = await ensure_conversation(session, conversation_id, current_user.id)
@@ -112,11 +115,24 @@ async def send_agent_message(
     return success({"conversation_id": conversation.id, **result})
 
 
+@router.post("/conversations/{conversation_id}/confirm-leave")
+async def confirm_agent_leave(
+    conversation_id: int,
+    payload: AgentConfirmation,
+    current_user: CurrentActiveUser,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    conversation = await ensure_conversation(session, conversation_id, current_user.id)
+    result = await confirm_leave(session, current_user, conversation.id, payload.confirmation_token)
+    return success({"conversation_id": conversation.id, "result": result}, message="请假申请已提交")
+
+
 @router.post("/conversations/{conversation_id}/messages/stream")
 async def stream_agent_message(
     conversation_id: int,
     payload: AgentMessageCreate,
     current_user: CurrentActiveUser,
+    _: User = Depends(agent_sse_rate_limit),
     session: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     conversation = await ensure_conversation(session, conversation_id, current_user.id)
@@ -133,7 +149,7 @@ async def stream_agent_message(
         if result["transferred_to_hr"]:
             payload = {"message": "已转交 HR"}
             yield f"event: hr_transferred\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-        yield f"event: completed\ndata: {json.dumps({'request_id': result['request_id']})}\n\n"
+        yield f"event: completed\ndata: {json.dumps({'request_id': result['request_id'], 'requires_confirmation': result.get('requires_confirmation', False), 'confirmation_token': result.get('confirmation_token')}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         events(),

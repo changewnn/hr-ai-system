@@ -71,3 +71,15 @@ async def ensure_employee_department_scope(session: AsyncSession, current_user: 
         manager = await session.get(Employee, current_user.employee_id) if current_user.employee_id else None
         if manager is None or manager.department_id != employee.department_id:
             raise BusinessError(10006, "PERMISSION_DENIED", "主管只能访问本部门员工数据", 403)
+
+
+async def agent_rate_limit(current_user: CurrentActiveUser) -> User:
+    from app.core.security import check_agent_rate_limit
+    await check_agent_rate_limit(current_user.id)
+    return current_user
+
+
+async def agent_sse_rate_limit(current_user: CurrentActiveUser) -> User:
+    from app.core.security import check_agent_rate_limit
+    await check_agent_rate_limit(current_user.id, stream=True)
+    return current_user

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from app.common.errors import BusinessError, business_error_handler
+from app.common.errors import BusinessError, business_error_handler, unexpected_error_handler
 
 
 async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     application.include_router(agent_router, prefix="/api")
     application.add_exception_handler(BusinessError, business_error_handler)
     application.add_exception_handler(RequestValidationError, validation_error_handler)
+    application.add_exception_handler(Exception, unexpected_error_handler)
     return application
 
 

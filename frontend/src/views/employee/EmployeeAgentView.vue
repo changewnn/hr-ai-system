@@ -19,6 +19,8 @@
               <div class="chat-bubble"><p>{{ message.content }}</p>
                 <div v-if="message.citations?.length" class="citation-list"><strong>政策出处</strong><button v-for="citation in message.citations" :key="citation.chunk_id" class="citation" @click="showCitation(citation)">{{ citation.document_name }} · {{ citation.version }} · {{ citation.section || '政策片段' }}</button></div>
                 <el-tag v-if="message.transferred_to_hr" type="warning" effect="plain">已转交 HR</el-tag>
+                <el-button v-if="confirmationToken(message) && !message.confirmed" size="small" type="primary" @click="confirmLeave(message)">确认提交请假</el-button>
+                <el-tag v-if="message.confirmed" type="success" effect="plain">已提交</el-tag>
               </div>
             </article>
             <div v-if="sending" class="agent-typing"><el-icon class="is-loading"><Loading /></el-icon> 正在检索政策并生成回答</div>
@@ -51,9 +53,20 @@ async function send() {
     const response = await fetch(agentApi.streamUrl(conversationId), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('hr_access_token')}` }, body: JSON.stringify({ content }) })
     if (!response.ok) throw new Error((await response.json()).message || '助手请求失败')
     const reader = response.body.getReader(), decoder = new TextDecoder(); let buffer = ''
-    while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const blocks = buffer.split('\n\n'); buffer = blocks.pop() || ''; for (const block of blocks) { const event = block.match(/^event: (.+)$/m)?.[1], data = block.match(/^data: (.+)$/m)?.[1]; if (!event || !data) continue; const payload = JSON.parse(data); if (event === 'message_delta') assistant.content += payload.delta || ''; if (event === 'citation') assistant.citations.push(payload); if (event === 'hr_transferred') assistant.transferred_to_hr = true } await scrollBottom() }
+    while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const blocks = buffer.split('\n\n'); buffer = blocks.pop() || ''; for (const block of blocks) { const event = block.match(/^event: (.+)$/m)?.[1], data = block.match(/^data: (.+)$/m)?.[1]; if (!event || !data) continue; const payload = JSON.parse(data); if (event === 'message_delta') assistant.content += payload.delta || ''; if (event === 'citation') assistant.citations.push(payload); if (event === 'hr_transferred') assistant.transferred_to_hr = true; if (event === 'completed') { assistant.requires_confirmation = payload.requires_confirmation; assistant.confirmation_token = payload.confirmation_token } } if (!assistant.confirmation_token) assistant.confirmation_token = confirmationToken(assistant); await scrollBottom() }
     await loadConversations()
   } catch (e) { messages.value = messages.value.filter((item) => item !== assistant); ElMessage.error(e.businessMessage || e.message || '助手请求失败') } finally { sending.value = false; await scrollBottom() }
+}
+async function confirmLeave(message) {
+  const token = confirmationToken(message)
+  if (!token || sending.value) return
+  sending.value = true
+  try { await agentApi.confirmLeave(activeId.value, { confirmation_token: token }); message.confirmation_token = token; message.confirmed = true; message.requires_confirmation = false; ElMessage.success('请假申请已提交') } catch (e) { ElMessage.error(e.businessMessage || e.message || '确认失败') } finally { sending.value = false }
+}
+function confirmationToken(message) {
+  if (message.confirmation_token) return message.confirmation_token
+  const match = String(message.content || '').match(/confirmation_token[：:]\s*([A-Za-z0-9_-]{20,})/)
+  return match?.[1] || ''
 }
 function showCitation(citation) { selectedCitation.value = citation; citationVisible.value = true }
 async function scrollBottom() { await nextTick(); const wrap = chatScrollbar.value?.wrapRef; if (wrap) wrap.scrollTop = wrap.scrollHeight }

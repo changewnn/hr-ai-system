@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.errors import BusinessError
 from app.core.config import get_settings
-from app.models.entities import Role
+from app.models.entities import Role, User
 from app.models.support import AgentConversation, AgentMessage, Message
 from app.services.knowledge import search_chunks
+from app.services.audit import record_audit
+from app.services.agent_tools import READ_TOOLS, create_confirmation, detect_tool, execute_leave, execute_read_tool, parse_leave_request
 
 
 class AgentState(TypedDict, total=False):
@@ -231,6 +233,42 @@ async def run_turn(
     if not get_settings().agent_enabled:
         raise BusinessError(60001, "AGENT_DISABLED", "智能助手当前未开启", 503)
     request_id = uuid4().hex
+
+    # Registered business tools are resolved before the RAG graph. No model or
+    # client supplied employee_id is ever accepted by this path.
+    leave_args = parse_leave_request(content)
+    if leave_args is not None:
+        if leave_args.get("missing"):
+            answer = "请补充请假开始日期和结束日期，例如：申请 2026-10-20 至 2026-10-21 年假，原因：个人事务。"
+            await persist_turn(session, conversation, content, answer, [], request_id)
+            await record_audit(session, actor_user_id=user_id, action="AGENT_TOOL_MISSING_ARGS", resource_type="agent_conversation", resource_id=str(conversation.id), after={"tool": "submit_leave"}, request_id=request_id)
+            return {"request_id": request_id, "answer": answer, "citations": [], "transferred_to_hr": False}
+        from app.models.entities import LeaveType
+        leave_type = await session.scalar(select(LeaveType).where(LeaveType.code == leave_args["leave_type_code"], LeaveType.status == "ACTIVE"))
+        if leave_type is None:
+            answer = "当前没有可用的年假类型，请联系 HR 配置。"
+            await persist_turn(session, conversation, content, answer, [], request_id)
+            return {"request_id": request_id, "answer": answer, "citations": [], "transferred_to_hr": False}
+        leave_args["leave_type_id"] = leave_type.id
+        token, action = await create_confirmation(session, user_id, conversation.id, leave_args)
+        answer = (f"请假预览：{leave_args['start_date']} 至 {leave_args['end_date']}，"
+                  f"类型：{leave_type.name}，原因：{leave_args['reason']}。\n"
+                  f"请确认提交（confirmation_token：{token}），10 分钟内有效。")
+        await persist_turn(session, conversation, content, answer, [], request_id)
+        await record_audit(session, actor_user_id=user_id, action="AGENT_CONFIRMATION_CREATED", resource_type="agent_action", resource_id=str(action.id), after={"tool": "submit_leave", "conversation_id": conversation.id}, request_id=request_id)
+        await session.commit()
+        return {"request_id": request_id, "answer": answer, "citations": [], "transferred_to_hr": False, "confirmation_token": token, "requires_confirmation": True}
+
+    tool_name = detect_tool(content)
+    if tool_name in READ_TOOLS:
+        user = await session.get(User, user_id)
+        if user is None:
+            raise BusinessError(60002, "AGENT_EMPLOYEE_REQUIRED", "当前账号不存在", 403)
+        result = await execute_read_tool(session, user, tool_name, content)
+        answer = _render_tool_result(result)
+        await persist_turn(session, conversation, content, answer, [], request_id)
+        await record_audit(session, actor_user_id=user_id, action="AGENT_TOOL_CALL", resource_type="agent_conversation", resource_id=str(conversation.id), after={"tool": tool_name}, request_id=request_id)
+        return {"request_id": request_id, "answer": answer, "citations": [], "transferred_to_hr": False, "tool": result}
     graph = build_agent_graph()
     result = await graph.ainvoke(
         {"conversation_id": conversation.id, "user_id": user_id, "content": content},
@@ -241,6 +279,9 @@ async def run_turn(
     if result.get("needs_hr"):
         await create_hr_consultation(session, user_id, content, conversation.id)
         answer = "未找到可靠政策依据，已转交 HR 处理。"
+        await record_audit(session, actor_user_id=user_id, action="AGENT_HR_TRANSFER", resource_type="agent_conversation", resource_id=str(conversation.id), after={"reason": "NO_RELIABLE_POLICY"}, request_id=request_id)
+    else:
+        await record_audit(session, actor_user_id=user_id, action="AGENT_RAG_ANSWER", resource_type="agent_conversation", resource_id=str(conversation.id), after={"citation_count": len(citations)}, request_id=request_id)
     await persist_turn(session, conversation, content, answer, citations, request_id)
     return {
         "request_id": request_id,
@@ -248,3 +289,23 @@ async def run_turn(
         "citations": citations,
         "transferred_to_hr": bool(result.get("needs_hr")),
     }
+
+
+def _render_tool_result(result: dict) -> str:
+    """Fixed server template prevents the model from fabricating business data."""
+    tool = result["tool"]
+    if tool == "my_profile":
+        item = result.get("item", {})
+        return f"我的档案：工号 {item.get('employee_no')}，姓名 {item.get('name')}，手机号 {item.get('phone')}，入职日期 {item.get('hire_date')}，状态 {item.get('status')}。"
+    if tool == "my_salary_slips":
+        items = result.get("items", [])
+        if not items:
+            return f"{result['month']} 暂无已发布工资条。"
+        item = items[0]
+        return (f"{item['month']} 工资条：应发 {item['gross_salary']} 元，考勤扣款 {item['attendance_deduct']} 元，"
+                f"社保 {item['social_security']} 元，公积金 {item['housing_fund']} 元，个税 {item['tax']} 元，实发 {item['net_salary']} 元。")
+    if tool == "my_leave_balance":
+        return f"{result['year']} 年假期余额：" + "；".join(f"{i['leave_type']} {i['remaining_days']} 天" for i in result.get("items", []))
+    if tool == "my_leave_records":
+        return "我的请假记录：" + ("；".join(f"{i['request_no']} {i['start_date']}至{i['end_date']} {i['days']}天 {i['status']}" for i in result.get("items", [])) or "暂无记录")
+    return f"{result['month']} 考勤记录：" + ("；".join(f"{i['work_date']} {i['status']}" for i in result.get("items", [])) or "暂无记录")

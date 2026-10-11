@@ -20,6 +20,31 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
+M10 第三阶段增加本人业务工具和请假确认状态表，部署时继续执行：
+
+```powershell
+docker compose build backend frontend
+docker compose up -d backend frontend nginx
+docker compose exec backend alembic -c alembic.ini upgrade head
+```
+
+M10 第四阶段安全与清理配置：
+
+```env
+HR_AGENT_ENABLED=false
+HR_AGENT_RATE_LIMIT_PER_MINUTE=30
+HR_AGENT_SSE_RATE_LIMIT_PER_MINUTE=10
+HR_AGENT_RETENTION_DAYS=180
+```
+
+启用 Agent 前先完成迁移、配置检查和测试。定时执行以下清理命令；它只删除过期 Agent 会话、消息和确认状态，不删除请假、考勤或工资正式业务数据：
+
+```powershell
+docker compose exec backend python scripts/cleanup_agent_data.py
+```
+
+后端未知异常只记录服务端日志，接口统一返回 `INTERNAL_SERVER_ERROR`，不会向前端返回堆栈、SQL、密钥或连接信息。
+
 然后在项目根目录执行：
 
 ```powershell

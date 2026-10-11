@@ -82,6 +82,23 @@ class AgentMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
 
+class AgentAction(Base):
+    """One-time confirmation state for the only Agent write operation."""
+
+    __tablename__ = "agent_action"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(ForeignKey("agent_conversation.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    tool_name: Mapped[str] = mapped_column(String(100))
+    args: Mapped[dict] = mapped_column(JSON)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="PENDING", index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
 class PolicyDocument(Base):
     __tablename__ = "policy_document"
     __table_args__ = (UniqueConstraint("name", "version", name="uq_policy_document_version"),)

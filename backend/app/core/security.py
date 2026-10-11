@@ -72,3 +72,22 @@ async def clear_login_failures(identifier: str) -> None:
         await redis.delete(f"login:failures:{identifier.strip().lower()}", f"login:locked:{identifier.strip().lower()}")
     finally:
         await redis.aclose()
+
+
+async def check_agent_rate_limit(user_id: int, *, stream: bool = False) -> None:
+    """Rate limit Agent requests; Redis failure fails closed for this sensitive API."""
+    redis = get_redis()
+    key = f"agent:rate:{'sse' if stream else 'request'}:{user_id}"
+    try:
+        count = await redis.incr(key)
+        if count == 1:
+            await redis.expire(key, 60)
+        limit = get_settings().agent_sse_rate_limit_per_minute if stream else get_settings().agent_rate_limit_per_minute
+        if count > limit:
+            raise BusinessError(90004, "AGENT_RATE_LIMITED", "智能助手请求过于频繁，请稍后重试", 429)
+    except BusinessError:
+        raise
+    except RedisError as exc:
+        raise BusinessError(90005, "AGENT_RATE_LIMIT_UNAVAILABLE", "智能助手暂时不可用，请稍后重试", 503) from exc
+    finally:
+        await redis.aclose()
