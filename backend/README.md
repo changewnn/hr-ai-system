@@ -20,6 +20,26 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
+Docker Compose 部署使用 `pgvector/pgvector:pg16`，PostgreSQL 和 Redis 均由 Compose 管理。连接地址必须使用服务名 `postgres` 和 `redis`，不能使用 `127.0.0.1` 或 `host.docker.internal`：
+
+```env
+HR_DATABASE_URL=postgresql+asyncpg://langchain_user:密码@postgres:5432/hr_ai_system
+HR_REDIS_URL=redis://:密码@redis:6379/0
+```
+
+首次测试初始化（不保留旧宿主机数据）：
+
+```powershell
+docker compose down -v
+docker compose up -d postgres redis
+docker compose exec postgres psql -U langchain_user -d hr_ai_system -c "CREATE EXTENSION IF NOT EXISTS vector;"
+docker compose up -d --build backend frontend nginx
+docker compose exec backend alembic -c alembic.ini upgrade head
+docker compose exec backend python scripts/seed.py
+```
+
+PostgreSQL、Redis 和知识库分别持久化到 `postgres_data`、`redis_data`、`knowledge_data`。正常 `docker compose down`、重建镜像或重启容器不会删除这些卷；只有 `docker compose down -v` 会删除它们。
+
 M10 第三阶段增加本人业务工具和请假确认状态表，部署时继续执行：
 
 ```powershell

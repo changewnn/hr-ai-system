@@ -10,6 +10,12 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # 0001 uses Base.metadata.create_all and may already have created this
+    # model table. Keep the revision compatible with both fresh and upgraded
+    # databases instead of attempting a duplicate CREATE TABLE.
+    bind = op.get_bind()
+    if sa.inspect(bind).has_table("agent_action"):
+        return
     op.create_table(
         "agent_action",
         sa.Column("id", sa.Integer(), primary_key=True),
