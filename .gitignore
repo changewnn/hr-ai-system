@@ -22,6 +22,8 @@ frontend/e2e-artifacts/
 .ruff_cache/
 data/knowledge/
 backend/data/knowledge/
+deploy/certbot/letsencrypt/*
+deploy/certbot/www/*
 
 # IDE and local tooling
 .idea/
